@@ -15,6 +15,12 @@ type (
 	StaticConfig struct {
 		Version  string    `yaml:"version"`
 		Clusters []Cluster `yaml:"clusters"`
+		ExtraLabels []Label `yaml:"extraLabels"`
+	}
+
+	Label struct {
+		Name string `yaml:"name"`
+		Value string `yaml:"value"`
 	}
 
 	Cluster struct {

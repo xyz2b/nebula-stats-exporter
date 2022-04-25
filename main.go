@@ -14,6 +14,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/vesoft-inc/nebula-stats-exporter/exporter"
+
 )
 
 var (
@@ -45,11 +46,11 @@ func main() {
 
 		bareMetal = kingpin.Flag("bare-metal",
 			"Whether running in bare metal environment").
-			Default("false").Bool()
+			Default("true").Bool()
 
 		bareMetalConfig = kingpin.Flag("bare-metal-config",
 			"The bare metal config file").
-			Default("/config.yaml").String()
+			Default("config/config.yaml").String()
 	)
 
 	kingpin.Version(version.Print("nebula-stats-exporter"))
@@ -67,6 +68,8 @@ func main() {
 		if err := yaml.Unmarshal(raw, &config); err != nil {
 			klog.Fatalf("unmarshal failed: %v", err)
 		}
+
+		exporter.InitExtraLabels(config)
 
 		nebulaExporter, err = exporter.NewNebulaExporter(*namespace, *cluster, *listenAddr, nil, config, *maxRequest)
 		if err != nil {

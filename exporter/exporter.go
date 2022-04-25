@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -104,18 +103,15 @@ func (exporter *NebulaExporter) CollectMetrics(
 	componentType string,
 	namespace string,
 	cluster string,
-	originMetrics []string,
+	metrics []StatsMetric,
 	ch chan<- prometheus.Metric) {
-	if len(originMetrics) == 0 {
+	if len(metrics) == 0 {
 		return
 	}
 
-	metrics := convertToMetrics(originMetrics)
+	//metrics := convertToMetrics(originMetrics)
 	for _, metric := range metrics {
-		v, err := strconv.ParseFloat(metric.Value, 64)
-		if err != nil {
-			continue
-		}
+		v := metric.Value
 
 		// TODO: uniform naming rules with _
 		labels := []string{"nebula_cluster", "componentType", "instanceName"}
@@ -126,17 +122,16 @@ func (exporter *NebulaExporter) CollectMetrics(
 			labelValues = append(labelValues, namespace)
 		}
 
-		for key, value := range metric.Labels {
-			labels = append(labels, key)
-			labelValues = append(labelValues, value)
-		}
+		//for key, value := range metric.Labels {
+		//	labels = append(labels, key)
+		//	labelValues = append(labelValues, value)
+		//}
 
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
+		ch <- mustNewConstMetric(
+			newDesc(
 				fmt.Sprintf("%s_%s_%s", FQNamespace, componentType, strings.ReplaceAll(metric.Name, ".", "_")),
 				"",
-				labels,
-				nil,
+				labels...,
 			),
 			prometheus.GaugeValue,
 			v,
@@ -162,7 +157,7 @@ func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterNa
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rocksDBStatus, err := getNebulaRocksDBStats(podIpAddress, podHttpPort)
+			rocksDBStatus, err := getNebulaRocksDBStatsJson(podIpAddress, podHttpPort)
 			if err != nil {
 				klog.Errorf("get query metrics from %s:%d failed: %v", podIpAddress, podHttpPort, err)
 				return
@@ -173,7 +168,7 @@ func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterNa
 	
 	go func() {
 		defer wg.Done()
-		metrics, err := getNebulaMetrics(podIpAddress, podHttpPort)
+		metrics, err := getNebulaMetricsJson(podIpAddress, podHttpPort)
 		if err != nil {
 			klog.Errorf("get query metrics from %s:%d failed: %v", podIpAddress, podHttpPort, err)
 			return
@@ -183,11 +178,16 @@ func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterNa
 
 	go func() {
 		defer wg.Done()
-		statusMetrics := "count=1"
-		if !isNebulaComponentRunning(podIpAddress, podHttpPort) {
-			statusMetrics = "count=0"
+		StatsMetric := []StatsMetric{
+			{
+				"count",
+				1,
+			},
 		}
-		exporter.CollectMetrics(instance.Name, instance.ComponentType, namespace, clusterName, []string{statusMetrics}, ch)
+		if !isNebulaComponentRunning(podIpAddress, podHttpPort) {
+			StatsMetric[0].Value = 0
+		}
+		exporter.CollectMetrics(instance.Name, instance.ComponentType, namespace, clusterName, StatsMetric, ch)
 	}()
 }
 
