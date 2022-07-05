@@ -6,7 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -125,6 +124,40 @@ func getNebulaMetricsJson(ipAddress string, port int32) ([]StatsMetric, error) {
 	return metrics, nil
 }
 
+func getNebulaMetricsJsonNewVersion(ipAddress string, port int32) ([]StatsMetric, error) {
+	httpClient := http.Client{
+		Timeout: time.Second * 2,
+	}
+
+	resp, err := httpClient.Get(fmt.Sprintf("http://%s:%d/stats?format=json", ipAddress, port))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var metrics []map[string]float64
+	if err := json.Unmarshal(bytes, &metrics); err != nil {
+		return nil, err
+	}
+
+	var statsMetric []StatsMetric
+	for _, metric := range metrics {
+		for k, v := range metric {
+			statsMetric = append(statsMetric, StatsMetric{
+				k,
+				v,
+			})
+		}
+	}
+
+	return statsMetric, nil
+}
+
 func getNebulaRocksDBStatsJson(ipAddress string, port int32) ([]StatsMetric, error) {
 	httpClient := http.Client{
 		Timeout: time.Second * 2,
@@ -141,26 +174,23 @@ func getNebulaRocksDBStatsJson(ipAddress string, port int32) ([]StatsMetric, err
 		return nil, err
 	}
 
-	var metrics []map[string]string
+	var metrics []map[string]float64
 	if err := json.Unmarshal(bytes, &metrics); err != nil {
 		return nil, err
 	}
 
 	var statsMetric []StatsMetric
 	for _, metric := range metrics {
-		v, err := strconv.ParseFloat(metric["value"], 64)
-		if err != nil {
-			continue
+		for k, v := range metric {
+			statsMetric = append(statsMetric, StatsMetric{
+				k,
+				v,
+			})
 		}
-		statsMetric = append(statsMetric, StatsMetric{
-			metric["name"],
-			v,
-		})
 	}
 
 	return statsMetric, nil
 }
-
 
 func mustNewConstMetric(desc *prometheus.Desc, valueType prometheus.ValueType, value float64, labelValues ...string) prometheus.Metric {
 	if labelValues != nil {

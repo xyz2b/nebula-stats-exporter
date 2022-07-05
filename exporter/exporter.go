@@ -105,8 +105,8 @@ func (exporter *NebulaExporter) CollectMetrics(
 	cluster string,
 	metrics []StatsMetric,
 	ch chan<- prometheus.Metric) {
-	if len(metrics) == 0 {
-		return
+		if len(metrics) == 0 {
+			return
 	}
 
 	//metrics := convertToMetrics(originMetrics)
@@ -140,7 +140,7 @@ func (exporter *NebulaExporter) CollectMetrics(
 	}
 }
 
-func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterName string, instance Instance, ch chan<- prometheus.Metric) {
+func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterName string, newVersion bool, instance Instance, ch chan<- prometheus.Metric) {
 	podIpAddress := instance.EndpointIP
 	podHttpPort := instance.EndpointPort
 
@@ -168,7 +168,13 @@ func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterNa
 	
 	go func() {
 		defer wg.Done()
-		metrics, err := getNebulaMetricsJson(podIpAddress, podHttpPort)
+		var metrics []StatsMetric
+		var err error
+		if newVersion {
+			metrics, err = getNebulaMetricsJsonNewVersion(podIpAddress, podHttpPort)
+		} else {
+			metrics, err = getNebulaMetricsJson(podIpAddress, podHttpPort)
+		}
 		if err != nil {
 			klog.Errorf("get query metrics from %s:%d failed: %v", podIpAddress, podHttpPort, err)
 			return
@@ -203,7 +209,7 @@ func (exporter *NebulaExporter) CollectFromStaticConfig(ch chan<- prometheus.Met
 			if instance.Name == "" {
 				instance.Name = fmt.Sprintf("%s-%s", instance.EndpointIP, instance.ComponentType)
 			}
-			exporter.collect(&wg, NonNamespace, cluster.Name, instance, ch)
+			exporter.collect(&wg, NonNamespace, cluster.Name, cluster.NewVersion, instance, ch)
 		}
 	}
 
@@ -235,6 +241,18 @@ func (exporter *NebulaExporter) CollectFromKubernetes(ch chan<- prometheus.Metri
 			continue
 		}
 
+		clusterNewVersion, ok := pod.Labels[ClusterNewVersion]
+		if !ok {
+			continue
+		}
+
+		var newVersion bool
+		if (clusterNewVersion == "true") {
+			newVersion = true
+		} else {
+			newVersion = false
+		}
+
 		podIpAddress := pod.Status.PodIP
 		podHttpPort := int32(0)
 		for _, port := range pod.Spec.Containers[0].Ports {
@@ -247,7 +265,7 @@ func (exporter *NebulaExporter) CollectFromKubernetes(ch chan<- prometheus.Metri
 			continue
 		}
 
-		exporter.collect(&wg, pod.Namespace, clusterName, Instance{
+		exporter.collect(&wg, pod.Namespace, clusterName, newVersion, Instance{
 			Name:          pod.Name,
 			EndpointIP:    podIpAddress,
 			EndpointPort:  podHttpPort,

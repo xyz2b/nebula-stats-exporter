@@ -5,6 +5,7 @@ const (
 
 	ComponentLabelKey = "app.kubernetes.io/component"
 	ClusterLabelKey   = "app.kubernetes.io/cluster"
+	ClusterNewVersion = "app.kubernetes.io/cluster/newVersion"
 
 	// FQNamespace represents the prometheus FQName
 	FQNamespace  = "nebula"
@@ -25,6 +26,7 @@ type (
 
 	Cluster struct {
 		Name      string     `yaml:"name"`
+		NewVersion	bool	 `yaml:"newVersion"`
 		Instances []Instance `yaml:"instances"`
 	}
 

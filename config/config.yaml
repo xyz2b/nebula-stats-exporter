@@ -4,7 +4,7 @@ clusters:                                   # a list of clusters you want to mon
       - name: metad0                        # the instance name
         endpointIP: 192.168.10.131          # the ip of this instance
         endpointPort: 19559                 # the port of this instance
-        componentType: metad                # the component type of this instance, optional value metad, graphd and storaged.
+        componentType: storage                # the component type of this instance, optional value metad, graphd and storaged.
 extraLabels:
   - name: subsystem_name
     value: KNOWING-VIEWER
