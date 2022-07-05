@@ -1,5 +1,6 @@
 clusters:                                   # a list of clusters you want to monitor
   - name: nebula                            # the cluster name
+    newVersion: true
     instances:                              # a list of instances for this cluster
       - name: metad0                        # the instance name
         endpointIP: 192.168.10.131          # the ip of this instance
