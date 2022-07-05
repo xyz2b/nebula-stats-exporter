@@ -171,6 +171,7 @@ func (exporter *NebulaExporter) collect(wg *sync.WaitGroup, namespace, clusterNa
 		var metrics []StatsMetric
 		var err error
 		if newVersion {
+			// new version and old version nebula metric api return json txt is not same
 			metrics, err = getNebulaMetricsJsonNewVersion(podIpAddress, podHttpPort)
 		} else {
 			metrics, err = getNebulaMetricsJson(podIpAddress, podHttpPort)
